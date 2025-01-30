@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # sample dockerfile for testing docker builds
-FROM nginx:1.20-alpine as base
+FROM nginx:1.27-alpine as base
 
 RUN apk add --no-cache curl
 
