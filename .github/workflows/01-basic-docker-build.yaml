@@ -17,6 +17,7 @@ jobs:
       pull-requests: write
       contents: read
       security-events: write
+      packages: write
 
     steps:
       - name: Checkout git repo
@@ -80,6 +81,43 @@ jobs:
         with:
           sarif_file: "trivy-results.sarif"
 
+        # Kubernetes Smoke Test
+      - name: Login to ghcr.io registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.TOKEN_GITHUB }}
+
+      - name: Build and Push to GHCR
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ghcr.io/taibuharoub/docker-ci-automation:${{ github.run_id }}
+          target: test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - uses: AbsaOSS/k3d-action@v2
+        with:
+          cluster-name: "test-cluster-1"
+          args: >-
+            --agents 1
+            --no-lb
+            --k3s-arg "--no-deploy=traefik,servicelb,metrics-server@server:*"
+
+      - name: Smoke test deployment in k3d Kubernetes
+        run: |
+          kubectl create secret docker-registry regcred \
+            --docker-server=https://ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.TOKEN_GITHUB }}
+          export TESTING_IMAGE=ghcr.io/taibuharoub/docker-ci-automation:"$GITHUB_RUN_ID"
+          envsubst < manifests/deployment.yaml  | kubectl apply -f -
+          kubectl rollout status deployment myapp
+          kubectl exec deploy/myapp -- curl --fail localhost
+
       - name: Docker meta for Final Image Build
         id: docker_meta
         uses: docker/metadata-action@v5
@@ -88,7 +126,7 @@ jobs:
           flavor: |
             latest=false
           tags: |
-            type=raw,value=08
+            type=raw,value=10
             type=raw,value=latest,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
             type=ref,event=pr
             type=ref,event=branch
