@@ -224,7 +224,7 @@ jobs:
         id: docker_meta
         uses: docker/metadata-action@v5
         with:
-          images: taibuharoub/docker-ci-automation,ghcr.io/taibuharoub/docker-ci-automation
+          images: ty100/docker-ci-automation,ghcr.io/taibuharoub/docker-ci-automation
           flavor: |
             latest=false
           tags: |
